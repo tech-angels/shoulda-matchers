@@ -1,4 +1,5 @@
 module Shoulda # :nodoc:
+
   module Matchers
     module ActiveModel # :nodoc:
 
@@ -29,6 +30,11 @@ module Shoulda # :nodoc:
           self
         end
 
+        def in(set)
+          @set = set
+          self
+        end
+
         def with_message(message)
           if message
             @low_message = message
@@ -48,19 +54,23 @@ module Shoulda # :nodoc:
         end
 
         def description
-          "ensure inclusion of #{@attribute} in #{@range.inspect}"
+          "ensure inclusion of #{@attribute} in #{(@range || @set).inspect}"
         end
 
         def matches?(subject)
           super(subject)
+          if @range
+            @low_message  ||= :inclusion
+            @high_message ||= :inclusion
 
-          @low_message  ||= :inclusion
-          @high_message ||= :inclusion
-
-          disallows_lower_value &&
-            allows_minimum_value &&
-            disallows_higher_value &&
-            allows_maximum_value
+            disallows_lower_value &&
+              allows_minimum_value &&
+              disallows_higher_value &&
+              allows_maximum_value
+          elsif @set
+            allows_all_elements_in_set &&
+              disallows_elements_outside_set
+          end
         end
 
         private
@@ -79,6 +89,18 @@ module Shoulda # :nodoc:
 
         def allows_maximum_value
           allows_value_of(@maximum, @high_message)
+        end
+
+        def allows_all_elements_in_set
+          @set.each do |element|
+            allows_value_of element
+          end
+        end
+
+        def disallows_elements_outside_set
+          # generate string that's not in set
+          bad_value = @set.select {|x| x.is_a? String}.max.to_s.next
+          disallows_value_of bad_value
         end
       end
 
